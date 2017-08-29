@@ -1,0 +1,87 @@
+[normal  ]	       42
+==18815== NVPROF is profiling process 18815, command: ./test 128 128 128 normal
+==18815== Some kernel(s) will be replayed on device 0 in order to collect all events/metrics.
+[normal  ]	   188714
+==18815== Profiling application: ./test 128 128 128 normal
+==18815== Profiling result:
+==18815== Event result:
+Invocations                                Event Name         Min         Max         Avg       Total
+Device "GeForce GTX 1080 Ti (0)"
+    Kernel: MatMulKernel(Matrix, Matrix, Matrix)
+          1                 tex0_cache_sector_queries      395264      395264      395264      395264
+          1                 tex1_cache_sector_queries      395264      395264      395264      395264
+          1                  tex0_cache_sector_misses      133120      133120      133120      133120
+          1                  tex1_cache_sector_misses      133120      133120      133120      133120
+          1                     fb_subp0_read_sectors           0           0           0           0
+          1                     fb_subp1_read_sectors           0           0           0           0
+          1                    fb_subp0_write_sectors          13          13          13          13
+          1                    fb_subp1_write_sectors           0           0           0           0
+          1              l2_subp0_write_sector_misses           5           5           5           5
+          1              l2_subp1_write_sector_misses           8           8           8           8
+          1               l2_subp0_read_sector_misses           0           0           0           0
+          1               l2_subp1_read_sector_misses           0           0           0           0
+          1          l2_subp0_read_tex_sector_queries      131072      131072      131072      131072
+          1          l2_subp1_read_tex_sector_queries      131072      131072      131072      131072
+          1         l2_subp0_write_tex_sector_queries        1024        1024        1024        1024
+          1         l2_subp1_write_tex_sector_queries        1024        1024        1024        1024
+          1             l2_subp0_read_tex_hit_sectors      131072      131072      131072      131072
+          1             l2_subp1_read_tex_hit_sectors      131072      131072      131072      131072
+          1            l2_subp0_write_tex_hit_sectors        1024        1024        1024        1024
+          1            l2_subp1_write_tex_hit_sectors        1024        1024        1024        1024
+          1        l2_subp0_total_read_sector_queries      131120      131120      131120      131120
+          1        l2_subp1_total_read_sector_queries      131120      131120      131120      131120
+          1       l2_subp0_total_write_sector_queries        1025        1025        1025        1025
+          1       l2_subp1_total_write_sector_queries        1036        1036        1036        1036
+          1       l2_subp0_read_sysmem_sector_queries           0           0           0           0
+          1       l2_subp1_read_sysmem_sector_queries           0           0           0           0
+          1      l2_subp0_write_sysmem_sector_queries           5           5           5           5
+          1      l2_subp1_write_sysmem_sector_queries           0           0           0           0
+          1                         elapsed_cycles_sm      711287      711287      711287      711287
+          1                             gld_inst_8bit           0           0           0           0
+          1                            gld_inst_16bit           0           0           0           0
+          1                            gld_inst_32bit     4194304     4194304     4194304     4194304
+          1                            gld_inst_64bit           0           0           0           0
+          1                           gld_inst_128bit           0           0           0           0
+          1                             gst_inst_8bit           0           0           0           0
+          1                            gst_inst_16bit           0           0           0           0
+          1                            gst_inst_32bit       16384       16384       16384       16384
+          1                            gst_inst_64bit           0           0           0           0
+          1                           gst_inst_128bit           0           0           0           0
+          1                           prof_trigger_00           0           0           0           0
+          1                           prof_trigger_01           0           0           0           0
+          1                           prof_trigger_02           0           0           0           0
+          1                           prof_trigger_03           0           0           0           0
+          1                           prof_trigger_04           0           0           0           0
+          1                           prof_trigger_05           0           0           0           0
+          1                           prof_trigger_06           0           0           0           0
+          1                           prof_trigger_07           0           0           0           0
+          1                            warps_launched         512         512         512         512
+          1                              inst_issued0     1182281     1182281     1182281     1182281
+          1                              inst_issued1      873965      873965      873965      873965
+          1                              inst_issued2      147968      147968      147968      147968
+          1                             inst_executed     1168384     1168384     1168384     1168384
+          1                      thread_inst_executed    37388288    37388288    37388288    37388288
+          1   not_predicated_off_thread_inst_executed    37322752    37322752    37322752    37322752
+          1                             active_cycles      555725      555725      555725      555725
+          1                              active_warps     9708526     9708526     9708526     9708526
+          1                               global_load      131072      131072      131072      131072
+          1                              global_store         512         512         512         512
+          1                              generic_load           0           0           0           0
+          1                             generic_store           0           0           0           0
+          1                     inst_executed_in_trap           0           0           0           0
+          1                     active_cycles_in_trap           0           0           0           0
+          1                               local_store           0           0           0           0
+          1                                local_load           0           0           0           0
+          1                               shared_load           0           0           0           0
+          1                              shared_store           0           0           0           0
+          1             inst_executed_shared_atom_cas           0           0           0           0
+          1                               shared_atom           0           0           0           0
+          1                           global_atom_cas           0           0           0           0
+          1                                atom_count           0           0           0           0
+          1                                gred_count           0           0           0           0
+          1                          divergent_branch           0           0           0           0
+          1                                    branch       19456       19456       19456       19456
+          1                   shared_ld_bank_conflict           0           0           0           0
+          1                   shared_st_bank_conflict           0           0           0           0
+          1                    shared_ld_transactions           0           0           0           0
+          1                    shared_st_transactions           0           0           0           0
