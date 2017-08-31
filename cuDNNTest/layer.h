@@ -1,0 +1,34 @@
+#include <iostream>
+#include <cuda.h>
+#include <cudnn.h>
+#include <stdio.h>
+#include "cuDNNTest.h"
+
+typedef struct _layer {
+    int padding_w;
+    int padding_h;
+    int stride_horizontal;
+    int stride_vertical;
+    int in_channel;
+    int in_height;
+    int in_width;
+    int filter_width; 
+    int filter_height; 
+    int filter_num;
+    int inSize;
+    int filterSize;
+    int outSize;
+	cudnnTensorDescriptor_t inTensorDesc;
+    cudnnTensorDescriptor_t outTensorDesc;
+	cudnnFilterDescriptor_t filterDesc;
+	cudnnConvolutionDescriptor_t convDesc;
+    cudnnConvolutionFwdAlgo_t algo;
+    float *d_inData;
+    float *d_outData;
+    float *d_filterData;
+    __half *d_half_inData; 
+    __half *d_half_filterData; 
+    __half *d_half_outData;
+	size_t sizeInBytes;
+    void* workSpace;
+} conv_layer;
