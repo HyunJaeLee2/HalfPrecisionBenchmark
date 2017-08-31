@@ -8,20 +8,6 @@ const int batch_count = 1;
 cudnnHandle_t cudnnHandle;
 bool isHalfPrecision;
 
-void print(const char* title, float* src, int filter_num, int h, int w)
-{
-	cout << title << endl;
-	for (int i = 0; i < min(4, filter_num); i++) {
-		for (int y = 0; y < min(4, h); y++) {
-			for (int x = 0; x < min(4, w); x++) {
-				printf("%.4f ", src[i*h * w + y * w + x]);
-			}
-			cout << endl;
-		}
-		cout << endl;
-	}
-}
-
 void free_layer(conv_layer *layer)
 {
 	checkCUDNN(cudnnDestroyTensorDescriptor(layer->inTensorDesc));
@@ -115,7 +101,7 @@ conv_layer initFirstLayerWithRandom(char *argv[])
         checkCUDNN(cudnnSetFilter4dDescriptor(layer.filterDesc, CUDNN_DATA_HALF, CUDNN_TENSOR_NCHW, layer.filter_num, layer.in_channel, layer.filter_height, layer.filter_width));
         
         cudnnSetConvolutionNdDescriptor(layer.convDesc, convDims, padA, filterStrideA, upscaleA, CUDNN_CROSS_CORRELATION, CUDNN_DATA_HALF); 
-
+        
         checkCUDNN(cudnnGetConvolution2dForwardOutputDim(layer.convDesc, layer.inTensorDesc, layer.filterDesc, &out_n, &out_c, &out_h, &out_w));
         
         checkCUDNN(cudnnSetTensor4dDescriptor(layer.outTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF, out_n, out_c, out_h, out_w));
@@ -229,7 +215,8 @@ int main(int argc, char* argv[])
     checkCUDA(cudaMemcpy(outData, conv1.d_outData, sizeof(float)* conv1.outSize, cudaMemcpyDeviceToHost));
     print4D("conv out", outData, 1, conv1.filter_num, conv1.in_height, conv1.in_width);
 #endif
-		checkCUDNN(cudnnConvolutionForward(cudnnHandle,
+    
+        checkCUDNN(cudnnConvolutionForward(cudnnHandle,
                     &alpha,
                     conv1.inTensorDesc,
                     conv1.d_half_inData,
@@ -246,13 +233,11 @@ int main(int argc, char* argv[])
         checkCUDA(cudaDeviceSynchronize());
         time_accum += (timer_get() - t);
 
-        
         gpu_half2float(conv1.outSize, conv1.d_half_outData, conv1.d_outData);
 		checkCUDA(cudaMemcpy(outData, conv1.d_outData, sizeof(float)* conv1.outSize, cudaMemcpyDeviceToHost));
 		print4D("conv out", outData, 1, conv1.filter_num, conv1.in_height, conv1.in_width);
 
 		fprintf(stderr,   "[half  ]\t%9ld\n", time_accum);
-
     }
 
 	checkCUDA(cudaThreadSynchronize());

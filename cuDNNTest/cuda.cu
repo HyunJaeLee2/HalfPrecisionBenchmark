@@ -5,7 +5,7 @@
 __global__ void float2half_rn_kernel(int size, const float *buffIn, __half *buffOut)
 {   
     const int idx = BLOCK_SIZE*blockIdx.x+threadIdx.x;
-    if (idx >= size/sizeof(__half)) return;
+    if (idx >= size) return;
     __half val;
     val.x = __float2half_rn(float(buffIn[idx]));
     buffOut[idx] = val;
@@ -21,7 +21,7 @@ void gpu_float2half_rn(int size, const float *buffIn, __half *buffOut)
 __global__ void half2float_kernel(int size, const __half *buffIn, float *buffOut)
 {   
     const int idx = BLOCK_SIZE*blockIdx.x+threadIdx.x;
-    if (idx >= size/sizeof(__half)) return;
+    if (idx >= size) return;
     float val;
     val = __half2float((buffIn[idx]));
     buffOut[idx] = val;
