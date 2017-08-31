@@ -25,6 +25,7 @@ void free_layer(conv_layer *layer)
     if(layer->d_half_outData) checkCUDA(cudaFree(layer->d_half_outData));;
     if(layer->d_half_filterData) checkCUDA(cudaFree(layer->d_half_filterData));
     
+    if(layer->workSpace) checkCUDA(cudaFree(layer->workSpace));
 }
 
 conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, int filter_num)
@@ -32,7 +33,7 @@ conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, 
 	float *inData, *filterData;
     int inSize, outSize, filterSize;
     
-    conv_layer layer;
+    conv_layer layer = {0};
 
     printf("in_len : %d, in_channel : %d, filter_len : %d, filter_num : %d\n", in_len, in_channel, filter_len, filter_num);
     //set padding and stride to 1 as default
@@ -112,7 +113,6 @@ conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, 
         checkCUDNN(cudnnGetConvolution2dForwardOutputDim(layer.convDesc, layer.inTensorDesc, layer.filterDesc, &out_n, &out_c, &out_h, &out_w));
         
         checkCUDNN(cudnnSetTensor4dDescriptor(layer.outTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF, out_n, out_c, out_h, out_w));
-        printf("HALF!!\n");
     }
     printf("conv out shape (n x c x h x w) = (%d x %d x %d x %d)\n", out_n, out_c, out_h, out_w);
 
@@ -139,6 +139,9 @@ conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, 
 	cout << "sizeInBytes " << layer.sizeInBytes << endl;
 
 	if (layer.sizeInBytes != 0) checkCUDA(cudaMalloc(&layer.workSpace, layer.sizeInBytes));
+
+    free(inData);
+    free(filterData);
 
     return layer;
 }
@@ -176,12 +179,16 @@ void executeLayer(int in_len, int in_channel, int filter_len, int filter_num)
         time_accum += time_diff; 
 
         checkCUDA(cudaMemcpy(outData, conv1.d_outData, sizeof(float)* conv1.outSize, cudaMemcpyDeviceToHost));
-        //print4D("conv out", outData, 1, conv1.filter_num, conv1.in_height, conv1.in_width);
+        print4D("conv out", outData, 1, conv1.filter_num, conv1.in_height, conv1.in_width);
 
         fprintf(stderr,   "[float  ]\t%9ld\n", time_diff);
     }
     else
     {
+        if(conv1.d_inData) {checkCUDA(cudaFree(conv1.d_inData)); conv1.d_inData = NULL;}
+        if(conv1.d_outData){checkCUDA(cudaFree(conv1.d_outData)); conv1.d_outData = NULL;}
+        if(conv1.d_filterData) {checkCUDA(cudaFree(conv1.d_filterData)); conv1.d_filterData = NULL;};
+        
         checkCUDNN(cudnnConvolutionForward(cudnnHandle,
                     &alpha,
                     conv1.inTensorDesc,
@@ -201,12 +208,17 @@ void executeLayer(int in_len, int in_channel, int filter_len, int filter_num)
         time_diff = (timer_get() - prev);
         time_accum += time_diff; 
 
+        //d_outData was freed then reallocated to optimize memory
+        checkCUDA(cudaMalloc((void**)&conv1.d_outData, conv1.outSize * sizeof(float)));
+
         gpu_half2float(conv1.outSize, conv1.d_half_outData, conv1.d_outData);
 		checkCUDA(cudaMemcpy(outData, conv1.d_outData, sizeof(float)* conv1.outSize, cudaMemcpyDeviceToHost));
 		//print4D("conv out", outData, 1, conv1.filter_num, conv1.in_height, conv1.in_width);
 
 		fprintf(stderr,   "[half  ]\t%9ld\n", time_diff);
     }
+
+    free_layer(&conv1);
 
 }
 
@@ -218,7 +230,7 @@ int main(int argc, char* argv[])
 
     checkCUDNN(cudnnCreate(&cudnnHandle));
     
-    if(argc < 5)
+    if(argc < 8)
     {
         fprintf(stderr, "usage : ./test [Input Height/Width] [Channel] [Filter Height/Width] [Filter Num] [Rate of S] [Rate of T] [float/half]\n");
         return 0;
