@@ -2,6 +2,8 @@
 #include "cuda.h"
 #include "cuDNNTest.h"
 
+#define ITER_COUNT 20
+
 using namespace std;
 
 const int batch_count = 1;
@@ -35,7 +37,8 @@ conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, 
     
     conv_layer layer = {0};
 
-    printf("in_len : %d, in_channel : %d, filter_len : %d, filter_num : %d\n", in_len, in_channel, filter_len, filter_num);
+    //printf("in_len : %d, in_channel : %d, filter_len : %d, filter_num : %d\n", in_len, in_channel, filter_len, filter_num);
+    
     //set padding and stride to 1 as default
     if(filter_len == 1) 
         layer.padding_h = layer.padding_w = 0; 
@@ -114,7 +117,6 @@ conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, 
         
         checkCUDNN(cudnnSetTensor4dDescriptor(layer.outTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF, out_n, out_c, out_h, out_w));
     }
-    printf("conv out shape (n x c x h x w) = (%d x %d x %d x %d)\n", out_n, out_c, out_h, out_w);
 
 	checkCUDNN(cudnnGetConvolutionForwardAlgorithm(cudnnHandle,
 				layer.inTensorDesc,
@@ -126,7 +128,6 @@ conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, 
 				&layer.algo
 				));
 
-	cout << "Fastest layer.algorithm for conv0 = " << layer.algo << endl;
 
 	checkCUDNN(cudnnGetConvolutionForwardWorkspaceSize(cudnnHandle,
 				layer.inTensorDesc,
@@ -135,8 +136,11 @@ conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, 
 				layer.outTensorDesc,
 				layer.algo,
 				&layer.sizeInBytes));
-
+#ifdef DEBUG
+    printf("conv out shape (n x c x h x w) = (%d x %d x %d x %d)\n", out_n, out_c, out_h, out_w);
+	cout << "Fastest layer.algorithm for conv0 = " << layer.algo << endl;
 	cout << "sizeInBytes " << layer.sizeInBytes << endl;
+#endif
 
 	if (layer.sizeInBytes != 0) checkCUDA(cudaMalloc(&layer.workSpace, layer.sizeInBytes));
 
@@ -179,9 +183,10 @@ void executeLayer(int in_len, int in_channel, int filter_len, int filter_num)
         time_accum += time_diff; 
 
         checkCUDA(cudaMemcpy(outData, conv1.d_outData, sizeof(float)* conv1.outSize, cudaMemcpyDeviceToHost));
-        print4D("conv out", outData, 1, conv1.filter_num, conv1.in_height, conv1.in_width);
-
+        //print4D("conv out", outData, 1, conv1.filter_num, conv1.in_height, conv1.in_width);
+#ifdef DEBUG
         fprintf(stderr,   "[float  ]\t%9ld\n", time_diff);
+#endif
     }
     else
     {
@@ -214,10 +219,11 @@ void executeLayer(int in_len, int in_channel, int filter_len, int filter_num)
         gpu_half2float(conv1.outSize, conv1.d_half_outData, conv1.d_outData);
 		checkCUDA(cudaMemcpy(outData, conv1.d_outData, sizeof(float)* conv1.outSize, cudaMemcpyDeviceToHost));
 		//print4D("conv out", outData, 1, conv1.filter_num, conv1.in_height, conv1.in_width);
-
+#ifdef DEBUG
 		fprintf(stderr,   "[half  ]\t%9ld\n", time_diff);
+#endif
     }
-
+    free(outData);
     free_layer(&conv1);
 
 }
@@ -230,9 +236,9 @@ int main(int argc, char* argv[])
 
     checkCUDNN(cudnnCreate(&cudnnHandle));
     
-    if(argc < 8)
+    if(argc < 7)
     {
-        fprintf(stderr, "usage : ./test [Input Height/Width] [Channel] [Filter Height/Width] [Filter Num] [Rate of S] [Rate of T] [float/half]\n");
+        fprintf(stderr, "usage : ./test [Input Height/Width] [Channel] [Filter Height/Width] [Filter Num] [Rate of S] [Rate of T] \n");
         return 0;
     }
    
@@ -242,24 +248,54 @@ int main(int argc, char* argv[])
     filter_num =  atoi(argv[4]);
     rateS = atoi(argv[5]);
     rateT = atoi(argv[6]);
-    
+
+    /*
     if(strcmp(argv[7], "half") == 0) 
         isHalfPrecision = true;
     else 
         isHalfPrecision = false;
-    
-    executeLayer(in_len, in_channel, filter_len, filter_num);
-    
+    */
+    //Execute Float mode
+    isHalfPrecision = false;
+    for(int i = 0; i < ITER_COUNT; i++){
+        executeLayer(in_len, in_channel, filter_len, filter_num);
+    }
+    checkCUDA(cudaThreadSynchronize());
+
     time_save = time_accum;
     time_accum = 0;
+    
+    for(int i = 0; i < ITER_COUNT; i++){
+        executeLayer(in_len, in_channel, 1, in_channel * rateS / 100);
+        executeLayer(in_len, in_channel * rateS / 100, filter_len, filter_num * rateT / 100 );
+        executeLayer(in_len, filter_num * rateT / 100, 1, filter_num);
+    }
+    checkCUDA(cudaThreadSynchronize());
 
-    executeLayer(in_len, in_channel, 1, in_channel * rateS / 100);
-    executeLayer(in_len, in_channel * rateS / 100, filter_len, filter_num * rateT / 100 );
-    executeLayer(in_len, filter_num * rateT / 100, 1, filter_num);
+    fprintf(stderr,   "[Float w/o tucker  ]\t%9ld\n", time_save / ITER_COUNT);
+    fprintf(stderr,   "[Float tucker applied ]\t%9ld\n", time_accum / ITER_COUNT);
+    
+    time_accum = 0;
+    isHalfPrecision = true;
 
-    fprintf(stderr,   "[w/o tucker  ]\t%9ld\n", time_save);
-    fprintf(stderr,   "[apply tucker  ]\t%9ld\n", time_accum);
+    //Execute Half mode
+    for(int i = 0; i < ITER_COUNT; i++){
+        executeLayer(in_len, in_channel, filter_len, filter_num);
+    }
+    checkCUDA(cudaThreadSynchronize());
+
+    time_save = time_accum;
+    time_accum = 0;
+    
+    for(int i = 0; i < ITER_COUNT; i++){
+        executeLayer(in_len, in_channel, 1, in_channel * rateS / 100);
+        executeLayer(in_len, in_channel * rateS / 100, filter_len, filter_num * rateT / 100 );
+        executeLayer(in_len, filter_num * rateT / 100, 1, filter_num);
+    }
     
     checkCUDA(cudaThreadSynchronize());
+
+    fprintf(stderr,   "[Half w/o tucker  ]\t%9ld\n", time_save / ITER_COUNT);
+    fprintf(stderr,   "[Half tucker applied ]\t%9ld\n", time_accum / ITER_COUNT);
     return 0;
 }
