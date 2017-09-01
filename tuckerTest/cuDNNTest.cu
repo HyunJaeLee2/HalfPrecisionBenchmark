@@ -2,7 +2,7 @@
 #include "cuda.h"
 #include "cuDNNTest.h"
 
-#define ITER_COUNT 10
+#define ITER_COUNT 20
 
 #define checkCUDNN(res) if((res)!=CUDNN_STATUS_SUCCESS) {fprintf(stderr, "CUDNN error! %d (%s:%d)\n", res, __FILE__,__LINE__);}
 #define checkCUDA(res) if((res)!=(cudaError_t)CUDA_SUCCESS) {fprintf(stderr, "CUDA error! %d (%s:%d)\n", res, __FILE__,__LINE__);}
@@ -32,7 +32,7 @@ void free_layer(conv_layer *layer)
     if(layer->workSpace) checkCUDA(cudaFree(layer->workSpace));
 }
 
-conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, int filter_num)
+conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, int filter_num, int padding, int stride)
 {
 	float *inData, *filterData;
     int inSize, outSize, filterSize;
@@ -43,16 +43,17 @@ conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, 
     
     conv_layer layer = {0};
 
-    //printf("in_len : %d, in_channel : %d, filter_len : %d, filter_num : %d\n", in_len, in_channel, filter_len, filter_num);
+//    printf("in_len : %d, in_channel : %d, filter_len : %d, filter_num : %d, padding = %d, stride = %d\n", 
+//            in_len, in_channel, filter_len, filter_num, padding, stride);
     
-    //set padding and stride to 1 as default
-    if(filter_len == 1) 
-        layer.padding_h = layer.padding_w = 0; 
+    //set padding and stride 
+    if(filter_len == 1)  
+        layer.padding_h = layer.padding_w = 0;  
     else
-        layer.padding_h = layer.padding_w = 1;
-            
-    layer.stride_vertical = layer.stride_horizontal = 1;
-    
+        layer.padding_h = layer.padding_w = padding;
+    layer.stride_vertical = layer.stride_horizontal = stride;
+   
+    //set input and filter
     layer.in_height = layer.in_width = in_len; 
     layer.in_channel = in_channel;
     layer.filter_height = layer.filter_width = filter_len;
@@ -117,7 +118,7 @@ conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, 
         checkCUDNN(cudnnSetTensor4dDescriptor(layer.inTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF, batch_count, layer.in_channel, layer.in_height, layer.in_width));
         checkCUDNN(cudnnSetFilter4dDescriptor(layer.filterDesc, CUDNN_DATA_HALF, CUDNN_TENSOR_NCHW, layer.filter_num, layer.in_channel, layer.filter_height, layer.filter_width));
         
-        cudnnSetConvolutionNdDescriptor(layer.convDesc, convDims, padA, filterStrideA, upscaleA, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT); 
+        cudnnSetConvolutionNdDescriptor(layer.convDesc, convDims, padA, filterStrideA, upscaleA, CUDNN_CROSS_CORRELATION, CUDNN_DATA_HALF); 
         
         checkCUDNN(cudnnGetConvolution2dForwardOutputDim(layer.convDesc, layer.inTensorDesc, layer.filterDesc, &out_n, &out_c, &out_h, &out_w));
         
@@ -156,9 +157,9 @@ conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, 
     return layer;
 }
 
-void executeLayer(int in_len, int in_channel, int filter_len, int filter_num)
+void executeLayer(int in_len, int in_channel, int filter_len, int filter_num, int padding, int stride)
 {
-    conv_layer conv1 = initFirstLayerWithRandom(in_len, in_channel, filter_len, filter_num);
+    conv_layer conv1 = initFirstLayerWithRandom(in_len, in_channel, filter_len, filter_num, padding, stride);
 	
     float *outData = (float *)malloc(sizeof(float) * conv1.outSize);
 
@@ -237,14 +238,16 @@ void executeLayer(int in_len, int in_channel, int filter_len, int filter_num)
 int main(int argc, char* argv[])
 {
     int in_len, in_channel, filter_len, filter_num;
+    int padding, stride;
     int rateS, rateT;
     long time_save;
+    bool applyTucker = true;
 
     checkCUDNN(cudnnCreate(&cudnnHandle));
     
-    if(argc < 7)
+    if(argc < 9)
     {
-        fprintf(stderr, "usage : ./test [Input Height/Width] [Channel] [Filter Height/Width] [Filter Num] [Rate of S] [Rate of T] \n");
+        fprintf(stderr, "usage : ./test [Input Height/Width] [Channel] [Filter Height/Width] [Filter Num] [padding] [stride] [Rate of S] [Rate of T] \n");
         return 0;
     }
    
@@ -252,56 +255,56 @@ int main(int argc, char* argv[])
     in_channel =  atoi(argv[2]);
     filter_len =  atoi(argv[3]);
     filter_num =  atoi(argv[4]);
-    rateS = atoi(argv[5]);
-    rateT = atoi(argv[6]);
+    padding = atoi(argv[5]);
+    stride = atoi(argv[6]);
+    rateS = atoi(argv[7]);
+    rateT = atoi(argv[8]);
 
-    /*
-    if(strcmp(argv[7], "half") == 0) 
-        isHalfPrecision = true;
-    else 
-        isHalfPrecision = false;
-    */
+    if(filter_len == 1) applyTucker = false;
+    
     //Execute Float mode
     isHalfPrecision = false;
     for(int i = 0; i < ITER_COUNT; i++){
-        executeLayer(in_len, in_channel, filter_len, filter_num);
+        executeLayer(in_len, in_channel, filter_len, filter_num, padding, stride);
     }
     checkCUDA(cudaThreadSynchronize());
 
     time_save = time_accum;
     time_accum = 0;
     
-    for(int i = 0; i < ITER_COUNT; i++){
-        executeLayer(in_len, in_channel, 1, in_channel * rateS / 100);
-        executeLayer(in_len, in_channel * rateS / 100, filter_len, filter_num * rateT / 100 );
-        executeLayer(in_len, filter_num * rateT / 100, 1, filter_num);
-    }
-    checkCUDA(cudaThreadSynchronize());
-
     fprintf(stderr,   "[Float w/o tucker  ]\t%9ld\n", time_save / ITER_COUNT);
-    fprintf(stderr,   "[Float tucker applied ]\t%9ld\n", time_accum / ITER_COUNT);
+    if(applyTucker){
+        for(int i = 0; i < ITER_COUNT; i++){
+            executeLayer(in_len, in_channel, 1, in_channel * rateS / 100, padding, stride);
+            executeLayer(in_len, in_channel * rateS / 100, filter_len, filter_num * rateT / 100 , padding, stride);
+            executeLayer(in_len, filter_num * rateT / 100, 1, filter_num, padding, stride);
+        }
+        checkCUDA(cudaThreadSynchronize());
+        fprintf(stderr,   "[Float tucker applied ]\t%9ld\n", time_accum / ITER_COUNT);
+    }
     
     time_accum = 0;
     isHalfPrecision = true;
 
     //Execute Half mode
     for(int i = 0; i < ITER_COUNT; i++){
-        executeLayer(in_len, in_channel, filter_len, filter_num);
+        executeLayer(in_len, in_channel, filter_len, filter_num, padding, stride);
     }
     checkCUDA(cudaThreadSynchronize());
 
     time_save = time_accum;
     time_accum = 0;
     
-    for(int i = 0; i < ITER_COUNT; i++){
-        executeLayer(in_len, in_channel, 1, in_channel * rateS / 100);
-        executeLayer(in_len, in_channel * rateS / 100, filter_len, filter_num * rateT / 100 );
-        executeLayer(in_len, filter_num * rateT / 100, 1, filter_num);
-    }
-    
-    checkCUDA(cudaThreadSynchronize());
-
     fprintf(stderr,   "[Half w/o tucker  ]\t%9ld\n", time_save / ITER_COUNT);
-    fprintf(stderr,   "[Half tucker applied ]\t%9ld\n", time_accum / ITER_COUNT);
+    if(applyTucker){
+        for(int i = 0; i < ITER_COUNT; i++){
+            executeLayer(in_len, in_channel, 1, in_channel * rateS / 100, padding, stride);
+            executeLayer(in_len, in_channel * rateS / 100, filter_len, filter_num * rateT / 100 , padding, stride);
+            executeLayer(in_len, filter_num * rateT / 100, 1, filter_num, padding, stride);
+        }
+        checkCUDA(cudaThreadSynchronize());
+        fprintf(stderr,   "[Half tucker applied ]\t%9ld\n", time_accum / ITER_COUNT);
+    }
+
     return 0;
 }
