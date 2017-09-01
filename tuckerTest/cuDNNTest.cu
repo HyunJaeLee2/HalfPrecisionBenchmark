@@ -117,7 +117,7 @@ conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, 
         checkCUDNN(cudnnSetTensor4dDescriptor(layer.inTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF, batch_count, layer.in_channel, layer.in_height, layer.in_width));
         checkCUDNN(cudnnSetFilter4dDescriptor(layer.filterDesc, CUDNN_DATA_HALF, CUDNN_TENSOR_NCHW, layer.filter_num, layer.in_channel, layer.filter_height, layer.filter_width));
         
-        cudnnSetConvolutionNdDescriptor(layer.convDesc, convDims, padA, filterStrideA, upscaleA, CUDNN_CROSS_CORRELATION, CUDNN_DATA_HALF); 
+        cudnnSetConvolutionNdDescriptor(layer.convDesc, convDims, padA, filterStrideA, upscaleA, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT); 
         
         checkCUDNN(cudnnGetConvolution2dForwardOutputDim(layer.convDesc, layer.inTensorDesc, layer.filterDesc, &out_n, &out_c, &out_h, &out_w));
         
