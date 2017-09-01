@@ -6,18 +6,6 @@
 
 using namespace std;
 
-void checkCUDNN(cudnnStatus_t status)
-{
-	if (status != CUDNN_STATUS_SUCCESS)
-		cout << "[ERROR] CUDNN " << status << endl;
-}
-
-void checkCUDA(cudaError_t error)
-{
-	if (error != CUDA_SUCCESS)
-		cout << "[ERROR] CUDA " << error << endl;
-}
-
 void printCUDAMem()
 {
     size_t free, total;

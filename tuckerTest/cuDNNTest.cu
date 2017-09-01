@@ -2,8 +2,10 @@
 #include "cuda.h"
 #include "cuDNNTest.h"
 
-#define ITER_COUNT 20
+#define ITER_COUNT 10
 
+#define checkCUDNN(res) if((res)!=CUDNN_STATUS_SUCCESS) {fprintf(stderr, "CUDNN error! %d (%s:%d)\n", res, __FILE__,__LINE__);}
+#define checkCUDA(res) if((res)!=(cudaError_t)CUDA_SUCCESS) {fprintf(stderr, "CUDA error! %d (%s:%d)\n", res, __FILE__,__LINE__);}
 using namespace std;
 
 const int batch_count = 1;
@@ -34,6 +36,10 @@ conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, 
 {
 	float *inData, *filterData;
     int inSize, outSize, filterSize;
+
+    //Set to 1 if input is zero when applying tucker
+    if(in_channel == 0) in_channel = 1;
+    if(filter_num == 0) filter_num = 1;
     
     conv_layer layer = {0};
 
