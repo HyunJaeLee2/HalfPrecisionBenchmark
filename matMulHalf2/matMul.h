@@ -1,3 +1,6 @@
+#ifndef MATMUL_H
+#define MATMUL_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "cuda_runtime.h"
@@ -25,4 +28,6 @@ typedef struct {
     __half2* half2_elements;
 } Matrix_half2;
 
+long timer_get(void);
 
+#endif
