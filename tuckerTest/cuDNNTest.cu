@@ -2,7 +2,7 @@
 #include "cuda.h"
 #include "cuDNNTest.h"
 
-#define ITER_COUNT 20
+#define ITER_COUNT 500
 
 #define checkCUDNN(res) if((res)!=CUDNN_STATUS_SUCCESS) {fprintf(stderr, "CUDNN error! %d (%s:%d)\n", res, __FILE__,__LINE__);}
 #define checkCUDA(res) if((res)!=(cudaError_t)CUDA_SUCCESS) {fprintf(stderr, "CUDA error! %d (%s:%d)\n", res, __FILE__,__LINE__);}
@@ -165,10 +165,10 @@ void executeLayer(int in_len, int in_channel, int filter_len, int filter_num, in
 	float alpha = 1.0f;
 	float beta = 0.0f;
 
-    long prev = timer_get();
-    long time_diff;
+    long time_diff, prev;
     if(!isHalfPrecision)
     {
+        prev = timer_get();
         checkCUDNN(cudnnConvolutionForward(cudnnHandle,
                     &alpha,
                     conv1.inTensorDesc,
@@ -189,20 +189,18 @@ void executeLayer(int in_len, int in_channel, int filter_len, int filter_num, in
         time_accum += time_diff; 
 
         checkCUDA(cudaMemcpy(outData, conv1.d_outData, sizeof(float)* conv1.outSize, cudaMemcpyDeviceToHost));
-
 #ifdef DEBUG
         print4D("float conv out", outData, 1, conv1.filter_num, conv1.in_height, conv1.in_width);
         fprintf(stderr,   "[float  ]\t%9ld\n", time_diff);
 #endif
-
     }
     else
     {
-        //free float memory when using half precision
         if(conv1.d_inData) {checkCUDA(cudaFree(conv1.d_inData)); conv1.d_inData = NULL;}
         if(conv1.d_outData){checkCUDA(cudaFree(conv1.d_outData)); conv1.d_outData = NULL;}
         if(conv1.d_filterData) {checkCUDA(cudaFree(conv1.d_filterData)); conv1.d_filterData = NULL;};
         
+        prev = timer_get();
         checkCUDNN(cudnnConvolutionForward(cudnnHandle,
                     &alpha,
                     conv1.inTensorDesc,
@@ -242,7 +240,7 @@ int main(int argc, char* argv[])
     int in_len, in_channel, filter_len, filter_num;
     int padding, stride;
     int rateS, rateT;
-    long time_save;
+    long time_normal = 0, time_layer1 = 0, time_layer2 = 0, time_layer3 = 0;
     bool applyTucker = true;
 
     checkCUDNN(cudnnCreate(&cudnnHandle));
@@ -269,20 +267,29 @@ int main(int argc, char* argv[])
     for(int i = 0; i < ITER_COUNT; i++){
         executeLayer(in_len, in_channel, filter_len, filter_num, padding, stride);
     }
-    checkCUDA(cudaThreadSynchronize());
 
-    time_save = time_accum;
+    time_normal = time_accum;
     time_accum = 0;
     
-    fprintf(stderr,   "[Float w/o tucker  ]\t%9ld\n", time_save / ITER_COUNT);
+    fprintf(stderr,   "[Float w/o tucker  ]\t%9ld\n", time_normal / ITER_COUNT);
     if(applyTucker){
         for(int i = 0; i < ITER_COUNT; i++){
-            executeLayer(in_len, in_channel, 1, in_channel * rateS / 100, padding, stride);
+            executeLayer(in_len, in_channel, 1, in_channel * rateS / 100, 0, 1);
+            time_layer1 += time_accum;
+            time_accum = 0;
+            
             executeLayer(in_len, in_channel * rateS / 100, filter_len, filter_num * rateT / 100 , padding, stride);
-            executeLayer(in_len, filter_num * rateT / 100, 1, filter_num, padding, stride);
+            time_layer2 += time_accum;
+            time_accum = 0;
+            
+            executeLayer(in_len, filter_num * rateT / 100, 1, filter_num, 0, 1);
+            time_layer3 += time_accum;
+            time_accum = 0;
         }
-        checkCUDA(cudaThreadSynchronize());
-        fprintf(stderr,   "[Float tucker applied ]\t%9ld\n", time_accum / ITER_COUNT);
+        fprintf(stderr,   "[Float tucker layer1 ]\t%9ld\n", time_layer1 / ITER_COUNT);
+        fprintf(stderr,   "[Float tucker layer2 ]\t%9ld\n", time_layer2 / ITER_COUNT);
+        fprintf(stderr,   "[Float tucker layer3 ]\t%9ld\n", time_layer3 / ITER_COUNT);
+        fprintf(stderr,   "[Float tucker applied ]\t%9ld\n", (time_layer1 + time_layer2 + time_layer3) / ITER_COUNT);
     }
     
     time_accum = 0;
@@ -292,20 +299,30 @@ int main(int argc, char* argv[])
     for(int i = 0; i < ITER_COUNT; i++){
         executeLayer(in_len, in_channel, filter_len, filter_num, padding, stride);
     }
-    checkCUDA(cudaThreadSynchronize());
 
-    time_save = time_accum;
+    time_normal = time_accum;
     time_accum = 0;
+    time_layer1 = time_layer2 = time_layer3 = 0;
     
-    fprintf(stderr,   "[Half w/o tucker  ]\t%9ld\n", time_save / ITER_COUNT);
+    fprintf(stderr,   "[Half w/o tucker  ]\t%9ld\n", time_normal / ITER_COUNT);
     if(applyTucker){
         for(int i = 0; i < ITER_COUNT; i++){
-            executeLayer(in_len, in_channel, 1, in_channel * rateS / 100, padding, stride);
+            executeLayer(in_len, in_channel, 1, in_channel * rateS / 100, 0, 1);
+            time_layer1 += time_accum;
+            time_accum = 0;
+            
             executeLayer(in_len, in_channel * rateS / 100, filter_len, filter_num * rateT / 100 , padding, stride);
-            executeLayer(in_len, filter_num * rateT / 100, 1, filter_num, padding, stride);
+            time_layer2 += time_accum;
+            time_accum = 0;
+            
+            executeLayer(in_len, filter_num * rateT / 100, 1, filter_num, 0, 1);
+            time_layer3 += time_accum;
+            time_accum = 0;
         }
-        checkCUDA(cudaThreadSynchronize());
-        fprintf(stderr,   "[Half tucker applied ]\t%9ld\n", time_accum / ITER_COUNT);
+        fprintf(stderr,   "[Half tucker layer1 ]\t%9ld\n", time_layer1 / ITER_COUNT);
+        fprintf(stderr,   "[Half tucker layer2 ]\t%9ld\n", time_layer2 / ITER_COUNT);
+        fprintf(stderr,   "[Half tucker layer3 ]\t%9ld\n", time_layer3 / ITER_COUNT);
+        fprintf(stderr,   "[Half tucker applied ]\t%9ld\n", (time_layer1 + time_layer2 + time_layer3) / ITER_COUNT);
     }
 
     return 0;
