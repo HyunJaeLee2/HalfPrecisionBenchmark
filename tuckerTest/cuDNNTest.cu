@@ -43,9 +43,6 @@ conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, 
     
     conv_layer layer = {0};
 
-//    printf("in_len : %d, in_channel : %d, filter_len : %d, filter_num : %d, padding = %d, stride = %d\n", 
-//            in_len, in_channel, filter_len, filter_num, padding, stride);
-    
     //set padding and stride 
     if(filter_len == 1)  
         layer.padding_h = layer.padding_w = 0;  
@@ -72,11 +69,13 @@ conv_layer initFirstLayerWithRandom(int in_len, int in_channel, int filter_len, 
     filterData = (float *)malloc(sizeof(float) * filterSize);
 
     initWithRandom4D(inData, batch_count, layer.in_channel, layer.in_height, layer.in_width);
-    //print4D("In Data", inData, batch_count, layer.in_channel, layer.in_height, layer.in_width);
-
     initWithRandom4D(filterData, layer.filter_num, layer.in_channel, layer.filter_height, layer.filter_width);
-    //print4D("Filter Data", filterData, layer.filter_num, layer.in_channel, layer.filter_height, layer.filter_width);
-    
+
+#ifdef DEBUG
+    print4D("In Data", inData, batch_count, layer.in_channel, layer.in_height, layer.in_width);
+    print4D("Filter Data", filterData, layer.filter_num, layer.in_channel, layer.filter_height, layer.filter_width);
+#endif
+
     checkCUDA(cudaMalloc((void**)&layer.d_inData, inSize * sizeof(float)));
 	checkCUDA(cudaMalloc((void**)&layer.d_filterData, filterSize * sizeof(float)));
     checkCUDA(cudaMalloc((void**)&layer.d_outData, outSize * sizeof(float)));
@@ -190,13 +189,16 @@ void executeLayer(int in_len, int in_channel, int filter_len, int filter_num, in
         time_accum += time_diff; 
 
         checkCUDA(cudaMemcpy(outData, conv1.d_outData, sizeof(float)* conv1.outSize, cudaMemcpyDeviceToHost));
-        //print4D("conv out", outData, 1, conv1.filter_num, conv1.in_height, conv1.in_width);
+
 #ifdef DEBUG
+        print4D("float conv out", outData, 1, conv1.filter_num, conv1.in_height, conv1.in_width);
         fprintf(stderr,   "[float  ]\t%9ld\n", time_diff);
 #endif
+
     }
     else
     {
+        //free float memory when using half precision
         if(conv1.d_inData) {checkCUDA(cudaFree(conv1.d_inData)); conv1.d_inData = NULL;}
         if(conv1.d_outData){checkCUDA(cudaFree(conv1.d_outData)); conv1.d_outData = NULL;}
         if(conv1.d_filterData) {checkCUDA(cudaFree(conv1.d_filterData)); conv1.d_filterData = NULL;};
@@ -225,8 +227,8 @@ void executeLayer(int in_len, int in_channel, int filter_len, int filter_num, in
 
         gpu_half2float(conv1.outSize, conv1.d_half_outData, conv1.d_outData);
 		checkCUDA(cudaMemcpy(outData, conv1.d_outData, sizeof(float)* conv1.outSize, cudaMemcpyDeviceToHost));
-		//print4D("conv out", outData, 1, conv1.filter_num, conv1.in_height, conv1.in_width);
 #ifdef DEBUG
+		print4D("half conv out", outData, 1, conv1.filter_num, conv1.in_height, conv1.in_width);
 		fprintf(stderr,   "[half  ]\t%9ld\n", time_diff);
 #endif
     }
