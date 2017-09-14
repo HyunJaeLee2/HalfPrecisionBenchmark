@@ -1,8 +1,9 @@
-CLEAR=~/clear_cache.sh
+#CLEAR=~/clear_cache.sh
+CLEAR=
 TINYYOLO=tiny-yolo
 SSD=ssd
 
-if [ $1 -eq 1 ]
+if [ $1 -eq 1 ];
 then 
     for i in 25 50 75; do
         ${CLEAR}
@@ -22,7 +23,7 @@ then
         ${CLEAR}
         ./test 13 1024 3 1024 1 1 ${i} ${i} &> profile/${TINYYOLO}/layer13_${i}.log
     done
-else [ $1 -eq 2 ]
+elif [ $1 -eq 2 ]; then
     for i in 25 50 75; do
         ${CLEAR}
         ./test 19 1024 1 256 0 1 ${i} ${i} &> profile/${SSD}/conv6_1_${i}.log

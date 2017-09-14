@@ -4,6 +4,9 @@
 #include "half2.h"
 #include <time.h>
 
+#define ITER_COUNT 500
+long time_accum = 0;
+
 long timer_get(void)
 {
     struct timespec time;
@@ -15,13 +18,31 @@ long timer_get(void)
     return  (time.tv_nsec)/1000 + time.tv_sec*1000000;
 }
 
+void initWithRandom2D(Matrix A)
+{
+    for(int i = 0; i < A.height; i++)
+        for(int j = 0; j < A.width; j++)
+            A.elements[i*A.width + j] = (float)random() / (float)RAND_MAX;
+}
+
+void print2DLimited(Matrix A)
+{
+    for(int i = 0; i < min(32, A.height); i++){
+        for(int j = 0; j < min(32, A.width); j++)
+            printf("%.4f ", A.elements[i*A.width + j]);
+        printf("\n");
+    }
+    printf("\n");
+}
+
 int main(int argc, char* argv[]){
     Matrix A, B, C;
     int a1, a2, b1, b2;
 
-    if(argc < 5)
+    if(argc < 4)
     {   
-        fprintf(stderr, "usage : ./test [Height of former matrix] [Width of former matrix] [Width of latter matrix] [float/half/half2]\n");
+        fprintf(stderr, "usage : ./test [Height of former matrix] [Width of former matrix] [Width of latter matrix] \n");
+        //fprintf(stderr, "usage : ./test [Height of former matrix] [Width of former matrix] [Width of latter matrix] [float/half/half2]\n");
         return 0;
     }
 
@@ -44,14 +65,19 @@ int main(int argc, char* argv[]){
     C.width = B.width;
     C.elements = (float*)malloc(C.width * C.height * sizeof(float));
 
-    for(int i = 0; i < A.height; i++)
-        for(int j = 0; j < A.width; j++)
-            A.elements[i*A.width + j] = (float)(random() % 7);
+    initWithRandom2D(A);
+    initWithRandom2D(B);
+    MatMul(A,B,C);
 
-    for(int i = 0; i < B.height; i++)
-        for(int j = 0; j < B.width; j++)
-            B.elements[i*B.width + j] = (float)(random() % 7);
+    initWithRandom2D(A);
+    initWithRandom2D(B);
+    MatMul_half(A, B, C);
     
+    initWithRandom2D(A);
+    initWithRandom2D(B);
+    MatMul_half2(A, B, C);
+    
+    /*
     if(strcmp(argv[4], "float") == 0)
         MatMul(A,B,C);
     else if(strcmp(argv[4], "half") == 0)
@@ -62,28 +88,13 @@ int main(int argc, char* argv[]){
         fprintf(stderr, "not supported\n");
         return 0;
     }
+    */
 
 #ifdef DEBUG
-    for(int i = 0; i < min(32, A.height); i++){
-        for(int j = 0; j < min(32, A.width); j++)
-            printf("%d ", (int)A.elements[i*A.width + j]);
-        printf("\n");
-    }
-    printf("\n");
+    print2DLimited(A);
+    print2DLimited(B);
+    print2DLimited(C);
 
-    for(int i = 0; i < min(32, B.height); i++){
-        for(int j = 0; j < min(32, B.width); j++)
-            printf("%d ", (int)B.elements[i*B.width + j]);
-        printf("\n");
-    }
-    printf("\n");
-
-    for(int i = 0; i < min(32, C.height); i++){
-        for(int j = 0; j < min(32, C.width); j++)
-            printf("%d ", (int)C.elements[i*C.width + j]);
-        printf("\n");
-    }
-    printf("\n");
 #endif
 
     return 0;
