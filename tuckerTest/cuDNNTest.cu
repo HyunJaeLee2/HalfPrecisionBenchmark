@@ -273,15 +273,30 @@ int main(int argc, char* argv[])
     
     fprintf(stderr,   "[Float w/o tucker  ]\t%9ld\n", time_normal / ITER_COUNT);
     if(applyTucker){
+#ifdef MY_TUCKER
         for(int i = 0; i < ITER_COUNT; i++){
             executeLayer(in_len, in_channel, 1, in_channel * rateS / 100, 0, 1);
             time_layer1 += time_accum;
             time_accum = 0;
             
+            executeLayer(in_len, in_channel * rateS / 100, filter_len, filter_num, padding, stride);
+            time_layer2 += time_accum;
+            time_accum = 0;
+        }
+        fprintf(stderr,   "[Float my-tucker layer1 ]\t%9ld\n", time_layer1 / ITER_COUNT);
+        fprintf(stderr,   "[Float my-tucker layer2 ]\t%9ld\n", time_layer2 / ITER_COUNT);
+        fprintf(stderr,   "[Float my-tucker applied ]\t%9ld\n", (time_layer1 + time_layer2) / ITER_COUNT);
+        time_layer1 = time_layer2 = time_layer3 = 0;
+#endif
+        for(int i = 0; i < ITER_COUNT; i++){
+            executeLayer(in_len, in_channel, 1, in_channel * rateS / 100, 0, 1);
+            time_layer1 += time_accum;
+            time_accum = 0;
+
             executeLayer(in_len, in_channel * rateS / 100, filter_len, filter_num * rateT / 100 , padding, stride);
             time_layer2 += time_accum;
             time_accum = 0;
-            
+
             executeLayer(in_len, filter_num * rateT / 100, 1, filter_num, 0, 1);
             time_layer3 += time_accum;
             time_accum = 0;
@@ -306,6 +321,21 @@ int main(int argc, char* argv[])
     
     fprintf(stderr,   "[Half w/o tucker  ]\t%9ld\n", time_normal / ITER_COUNT);
     if(applyTucker){
+#ifdef MY_TUCKER
+        for(int i = 0; i < ITER_COUNT; i++){
+            executeLayer(in_len, in_channel, 1, in_channel * rateS / 100, 0, 1);
+            time_layer1 += time_accum;
+            time_accum = 0;
+            
+            executeLayer(in_len, in_channel * rateS / 100, filter_len, filter_num, padding, stride);
+            time_layer2 += time_accum;
+            time_accum = 0;
+        }
+        fprintf(stderr,   "[Half my-tucker layer1 ]\t%9ld\n", time_layer1 / ITER_COUNT);
+        fprintf(stderr,   "[Half my-tucker layer2 ]\t%9ld\n", time_layer2 / ITER_COUNT);
+        fprintf(stderr,   "[Half my-tucker applied ]\t%9ld\n", (time_layer1 + time_layer2) / ITER_COUNT);
+        time_layer1 = time_layer2 = time_layer3 = 0;
+#endif
         for(int i = 0; i < ITER_COUNT; i++){
             executeLayer(in_len, in_channel, 1, in_channel * rateS / 100, 0, 1);
             time_layer1 += time_accum;

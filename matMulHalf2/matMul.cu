@@ -4,6 +4,7 @@
 #include "half2.h"
 #include <time.h>
 
+#define PRINT_NUM 8
 long timer_get(void)
 {
     struct timespec time;
@@ -64,22 +65,22 @@ int main(int argc, char* argv[]){
     }
 
 #ifdef DEBUG
-    for(int i = 0; i < min(32, A.height); i++){
-        for(int j = 0; j < min(32, A.width); j++)
+    for(int i = 0; i < min(PRINT_NUM, A.height); i++){
+        for(int j = 0; j < min(PRINT_NUM, A.width); j++)
             printf("%d ", (int)A.elements[i*A.width + j]);
         printf("\n");
     }
     printf("\n");
 
-    for(int i = 0; i < min(32, B.height); i++){
-        for(int j = 0; j < min(32, B.width); j++)
+    for(int i = 0; i < min(PRINT_NUM, B.height); i++){
+        for(int j = 0; j < min(PRINT_NUM, B.width); j++)
             printf("%d ", (int)B.elements[i*B.width + j]);
         printf("\n");
     }
     printf("\n");
 
-    for(int i = 0; i < min(32, C.height); i++){
-        for(int j = 0; j < min(32, C.width); j++)
+    for(int i = 0; i < min(PRINT_NUM, C.height); i++){
+        for(int j = 0; j < min(PRINT_NUM, C.width); j++)
             printf("%d ", (int)C.elements[i*C.width + j]);
         printf("\n");
     }

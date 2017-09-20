@@ -6,8 +6,7 @@
 #include "cuda_runtime.h"
 #include "cuda_fp16.h"
 
-#define BLOCK_SIZE 16
-//#define FP16
+#define BLOCK_SIZE 32
 
 typedef struct {
     int width;
