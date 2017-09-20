@@ -1,4 +1,5 @@
-CLEAR=/home/hjlee/clear_cache.sh
+#CLEAR=~/clear_cache.sh
+CLEAR=
 TINYYOLO=tiny-yolo
 SSD=ssd
 SSD_CONCAT=ssd-concat

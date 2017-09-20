@@ -1,6 +1,6 @@
 #FOLDER=${i}x${i}
 #mkdir profile/${FOLDER}
-for i in 32 64 128 256 512 1024 2048 4096 8192; do
+for i in 2 4 8 16 32 64 128 256 512 1024 2048 4096 8192; do
     echo "float ${i}"
     ./test $i $i $i float 
     ./test $i $i $i half
